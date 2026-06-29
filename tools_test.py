@@ -5,7 +5,7 @@
 import json
 import os
 from agent.session import Session
-from tools import sql, pandas_tool, plot
+from tools_old import sql, pandas_tool, plot
 
 DB_PATH = ".data/workspace.db"
 PASS = "\033[92mPASS\033[0m"
