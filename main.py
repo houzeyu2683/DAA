@@ -19,13 +19,18 @@ from nodes.chat import chat_node
 from nodes.clarify import clarify_node
 from nodes.plan import plan_node
 from nodes.sql import sql_node
+from nodes.pd import pd_node
+from nodes.stats import stats_node
+from nodes.plot import plot_node
+from nodes.report import report_node
 from routers.intent import intent_router
-from routers.task import task_router
+from routers.execute import execute_router
 
 ##
 model = getModel()
+
 ##
-if __name__ =='__main__':
+if __name__ == '__main__':
 
     ##  用戶登入
     user_id = uuid4().hex[:4]
@@ -70,6 +75,10 @@ if __name__ =='__main__':
     builder.add_node("clarify", clarify_node)
     builder.add_node("plan", plan_node)
     builder.add_node("sql", sql_node)
+    builder.add_node("pd", pd_node)
+    builder.add_node("stats", stats_node)
+    builder.add_node("plot", plot_node)
+    builder.add_node("report", report_node)
 
     builder.add_edge(START, "initial")
     builder.add_edge("initial", "human")
@@ -81,15 +90,24 @@ if __name__ =='__main__':
     })
     builder.add_edge("chat", "human")
     builder.add_edge("clarify", "human")
-    builder.add_conditional_edges("plan", task_router, {
-        "sql": "sql",
-        "human": "human",
-    })
-    builder.add_conditional_edges("sql", task_router, {
-        "sql": "sql",
-        "human": "human",
-    })
-    builder.add_edge("human", END)
+
+    task_mapping = {
+        'sql': "sql",
+        'pd': "pd",
+        "stats": 'stats',
+        'plot': 'plot',
+        'report': 'report'
+    }
+    builder.add_conditional_edges(
+        "plan", 
+        execute_router,
+        task_mapping
+    )
+    builder.add_conditional_edges('sql', execute_router, task_mapping)
+    builder.add_conditional_edges('pd', execute_router, task_mapping)
+    builder.add_conditional_edges('stats', execute_router, task_mapping)
+    builder.add_conditional_edges('plot', execute_router, task_mapping)
+    builder.add_edge('report', 'human')
  
     graph = builder.compile(checkpointer=MemorySaver())
     import PIL.Image, io
@@ -102,12 +120,13 @@ if __name__ =='__main__':
     graph.invoke(state, config=config)
     while True:
         # user_input = input("User: ")
-        # user_input = '幫我挑出欄位 Equipment 以及欄位 CP_50-100 的資料，接著執行 annova 分析，找出差異最大的三個機器，接著幫我把撈出來的資料畫 box chart ，我想知道機器以及CP之間的分佈'
-        user_input = '幫我挑出欄位 Equipment 以及欄位 CP_50-100 的資料'
+        # user_input = '幫我挑出欄位 Equipment 以及欄位 CP_50, CP_51, CP_52 的資料，接著執行 annova 分析，找出差異最大的三個機器，接著幫我把撈出來的資料畫 box chart ，我想知道機器以及CP之間的分佈'
+        user_input = "幫我查詢 Equipment 和 CP_50 的資料，對 Equipment 做 ANOVA 分析，看各機器的 CP_50 是否有顯著差異"
+        # user_input = '幫我挑出欄位 Equipment 以及欄位 CP_50-100 的資料'
         if user_input == "EXIT":
             break
         result = graph.invoke(Command(resume=user_input), config=config)
-    #     print(result['messages'][-1].content)
-
-
-    """我的寫法"""
+        # for msg in result['messages']:
+        #     if hasattr(msg, 'content') and msg.content:
+        #         print(f"\n[{type(msg).__name__}] {msg.content}")
+        # break
