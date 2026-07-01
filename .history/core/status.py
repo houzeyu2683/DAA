@@ -12,28 +12,29 @@ from langchain_core.messages import (
     HumanMessage, 
     ToolMessage
 )
-from typing import TypedDict, Annotated, List
+from typing import TypedDict, Annotated
 from operator import add
 
-# class StatsResult(TypedDict):
-#     method: str # "anova", "t-test" 等
-#     summary: str # 文字說明，給 LLM 看
-#     data: dict # 數字結果，給程式用
+class StatsResult(TypedDict):
+    method: str # "anova", "t-test" 等
+    summary: str # 文字說明，給 LLM 看
+    data: dict # 數字結果，給程式用
 
 
-# class Task(TypedDict):
-#     type: str
-#     description: str
+class Task(TypedDict):
+    type: str
+    description: str
 
-# class Table(TypedDict):
-#     name: str
-#     description: str
+class Table(TypedDict):
+    name: str
+    description: str
 
 class State(TypedDict):
-    messages: Annotated[List, add_messages]
-    intent: dict
-    # tasks: list[Task]
-    # stats: Annotated[list[StatsResult], add]
+    messages: Annotated[list, add_messages]
+    tables: Annotated[list[Table], add]
+    intent: str
+    tasks: list[Task]
+    stats: Annotated[list[StatsResult], add]
 
 
 # 對，你整個專案用不到 tool。

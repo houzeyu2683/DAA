@@ -4,7 +4,7 @@ from langchain_core.messages import filter_messages
 import json
 from langchain_core.messages import HumanMessage
 from langchain_core.messages import SystemMessage, AIMessage
-from core import getModel
+from core.functions import getModel
 
 model = getModel()
 

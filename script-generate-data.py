@@ -29,15 +29,15 @@ def generate_virtual_table(nrows: int, outpath: str) -> bool:
     }
 
     # CP_1 ~ CP_1800
-    for i in range(1, 1800+1):
+    for i in range(1, 800+1):
         data[f"CP_{i}"] = np.random.rand(nrows).astype(np.float32)
     
     # TF_1 ~ TF_3800
-    for i in range(1, 3800+1):
+    for i in range(1, 300+1):
         data[f"TF_{i}"] = np.random.rand(nrows).astype(np.float32)
 
     # WAT_1 ~ WAT_2800
-    for i in range(1, 2800+1):
+    for i in range(1, 200+1):
         data[f"WAT_{i}"] = np.random.rand(nrows).astype(np.float32)
 
     # 建立 DataFrame

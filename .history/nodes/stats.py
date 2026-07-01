@@ -3,7 +3,7 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from typing import TypedDict, Literal, List
 import duckdb
-from core import getModel
+from core.functions import getModel
 from langchain_core.messages import filter_messages
 import pandas as pd
 from scipy import stats
