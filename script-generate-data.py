@@ -20,7 +20,7 @@ def generate_virtual_table(nrows: int, outpath: str) -> bool:
         生成的 DataFrame。
     """
 
-    # 20 台 machine
+    # 200 台 machine
     machines = [f"machine_{i}" for i in range(1, 21)]
 
     # Equipment 欄位
@@ -28,9 +28,17 @@ def generate_virtual_table(nrows: int, outpath: str) -> bool:
         "Equipment": np.random.choice(machines, size=nrows)
     }
 
-    # CP_1 ~ CP_300
-    for i in range(1, 301):
+    # CP_1 ~ CP_1800
+    for i in range(1, 1800+1):
         data[f"CP_{i}"] = np.random.rand(nrows).astype(np.float32)
+    
+    # TF_1 ~ TF_3800
+    for i in range(1, 3800+1):
+        data[f"TF_{i}"] = np.random.rand(nrows).astype(np.float32)
+
+    # WAT_1 ~ WAT_2800
+    for i in range(1, 2800+1):
+        data[f"WAT_{i}"] = np.random.rand(nrows).astype(np.float32)
 
     # 建立 DataFrame
     df = pd.DataFrame(data)
@@ -50,7 +58,7 @@ def generate_virtual_table(nrows: int, outpath: str) -> bool:
     return True
 
 if __name__ =='__main__':
-    nrows = 2343
-    outpath = './.data/sample.csv'
+    nrows = 5000
+    outpath = './.data/frame.csv'
     
     generate_virtual_table(nrows, outpath)
