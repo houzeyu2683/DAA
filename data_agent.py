@@ -151,7 +151,10 @@ tools = [check_csv_exist, check_db_exist, create_db, insert_tb, describe_tb]
 DATA_AGENT_PROMPT = (
     "你是資料載入專家，負責處理用戶的資料，用於後續分析過程，"
     "你的職責是將用戶的 CSV 檔案寫入 DuckDB 的資料庫，"
-    "避免後續分析時，修改用戶的原始檔案。"
+    "避免後續分析時，修改用戶的原始檔案，"
+    "禁止產生任何程式碼，"
+    "完成任務後總結一下做了什麼，有哪些關鍵資訊？"
+    "以及接下來需要做什麼？"
 )
 data_agent = create_agent(
     model,
@@ -162,15 +165,19 @@ data_agent = create_agent(
 
 
 config = {"configurable": {"thread_id": "666"}}
-CSV_PATH = ".data/archive/data_trans.csv"
+CSV_PATH = ".data/archive/fifa_world_cup_2026_player_performance.csv"
 DB_PATH = ".data/tmp/data_agent_demo/database.db"
 
 question = (
-    f"CSV 檔案路徑是 {CSV_PATH},"
-    f"DuckDB 資料庫路徑是 {DB_PATH}。"
-    f"幫我把這份 CSV 寫入資料庫，然後告訴我這個表有幾筆資料、有多少欄位。"
+    f"幫我讀取{CSV_PATH}，我被分配的資料庫在{DB_PATH}"
+    f"我要針對欄位'minutes_played'以及欄位'nationality','player_id','team','jersey_number'進行分析"
+    f"幫我找出差異最大的前兩個，畫出 box plot。"
 )
-
+# question = (
+#     f"CSV 檔案路徑是 {CSV_PATH},"
+#     f"DuckDB 資料庫路徑是 {DB_PATH}。"
+#     f"幫我把這份 CSV 寫入資料庫，然後告訴我這個表有幾筆資料、有多少欄位。"
+# )
 
 if __name__ == "__main__":
     result = data_agent.invoke(
