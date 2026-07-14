@@ -1,3 +1,0 @@
-def analyze(
-    
-) -> dict
