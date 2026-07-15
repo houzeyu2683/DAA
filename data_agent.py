@@ -72,16 +72,16 @@ def _describe_tb(db_path: str, tb_name: str) -> dict:
 
     con = duckdb.connect(db_path, read_only=True)
     try:
-        df = con.execute(f"SELECT * FROM {tb_name} LIMIT 20").df()
-        col_count = len(df.columns)
+        df_table = con.execute(f"SELECT * FROM {tb_name} LIMIT 20").df()
+        col_count = len(df_table.columns)
         row_count = con.execute(
             f"SELECT COUNT(*) FROM {tb_name}"
         ).fetchone()[0]
     finally:
         con.close()
 
-    dtype_counts = dict(Counter(df.dtypes.astype(str)))
-    tb_preview = df.to_string(
+    dtype_counts = dict(Counter(df_table.dtypes.astype(str)))
+    tb_preview = df_table.to_string(
         max_cols=12, max_rows=12, show_dimensions=False
     )
     return {
