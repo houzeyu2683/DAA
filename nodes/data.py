@@ -121,10 +121,10 @@ DATA_SYSTEM_PROMPT = (
     "- 不要廢話"
     
 )
-
+from tools.system_tools import open_image
 data_agent = create_agent(
     model,
-    tools=tools
+    tools=tools + [open_image]
 )
 
 
