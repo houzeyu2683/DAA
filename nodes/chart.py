@@ -17,6 +17,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from MCP_server.client import fetch_tools
 import asyncio
+from string import Template
 
 
 load_dotenv()
@@ -118,17 +119,32 @@ tools = asyncio.run(fetch_tools(server_name, server_url, port))
 
 # tools = [read_statistic_table, plot_box_chart]
 
-CHART_SYSTEM_PROMPT = (
-    "你是資料分析師，負責解讀統計數據，使用視覺化技術來對原始資料進行畫圖，"
-    "你的職責是閱讀統計數據，根據用戶的問題來視覺化資料。"
+CHART_SYSTEM_PROMPT = Template(
+    # ── Role & Scope ──────────────────────────────
+    "You are a data visualization analyst, responsible for interpreting "
+    "statistical results and using visualization techniques to chart the "
+    "raw data.\n"
+    "Your job is to read the statistical data and create visualizations based "
+    "on the user's question."
     "\n\n"
-    "工作區路徑(workspace)：{workspace}\n"
-    "本次任務中所有資料庫、統計結果表、圖表輸出，都必須放在這個工作區底下，"
-    "除非用戶另有明確指示不同路徑。"
+    # ── Workspace Path ────────────────────────────
+    "Workspace path: $workspace\n"
+    "All databases, statistical result tables, and chart outputs for this task "
+    "must be placed under this workspace, unless the user explicitly specifies "
+    "a different path."
     "\n\n"
-    "回報任務的時候**必須明確告知圖檔位置***。"
-    "**禁止**生成任何程式碼。"
-    "不要廢話"
+    # ── Constraints ───────────────────────────────
+    "You must never generate any code."
+    "\n\n"
+    # ── Reporting Format ──────────────────────────
+    "When reporting on the task:\n"
+    "- Briefly describe what you did\n"
+    "- You must clearly state the location of the chart file(s)\n"
+    "- Do not include unnecessary filler\n"
+    "\n\n"
+    # ── Output Language ───────────────────────────
+    "IMPORTANT: Regardless of the language used in this system prompt, you "
+    "must always respond to the user in Traditional Chinese (繁體中文)."
 )
 
 chart_agent = create_agent(
@@ -140,7 +156,7 @@ ATTEMPT = 3
 async def chart_node(state: OrchestrationState, config: RunnableConfig) -> dict:
     # print("畫圖")
     workspace = config["configurable"]['workspace']
-    chart_system_prompt = CHART_SYSTEM_PROMPT.format(workspace=workspace)
+    chart_system_prompt = CHART_SYSTEM_PROMPT.substitute(workspace=workspace)
     messages = [SystemMessage(content=chart_system_prompt)] + state['messages']
 
     attempt = 0
@@ -159,6 +175,10 @@ async def chart_node(state: OrchestrationState, config: RunnableConfig) -> dict:
     #     message.pretty_print()
 
     # print("畫圖END")
-    content = response["messages"][-1].content
-    update = {"messages": [HumanMessage(content=content)]}
+    # content = response["messages"][-1].content
+    # update = {"messages": [HumanMessage(content=content)]}
+
+    response["messages"][-1].pretty_print()
+    print("\n\n")
+    update = {"messages": response["messages"][-1:]}
     return update

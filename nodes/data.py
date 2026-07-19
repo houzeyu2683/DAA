@@ -11,10 +11,10 @@ import duckdb as db
 from pathlib import Path
 from MCP_server.client import fetch_tools
 import asyncio
+from string import Template
+
 
 load_dotenv()
-
-
 model_name = os.environ["MODEL_NAME"]
 model_url = os.environ["MODEL_URL"]
 model_key = os.environ["MODEL_KEY"]
@@ -101,25 +101,37 @@ tools = asyncio.run(fetch_tools(server_name, server_url, port))
 #     get_table_shape,
 # ]
 
-
-
-
-DATA_SYSTEM_PROMPT = (
-    "你是資料載入專家，負責處理用戶的資料，用於後續分析過程，"
-    "你的職責是將用戶的數據寫入資料庫中的資料表，"
-    "避免後續分析時，修改用戶的原始檔案，"
+DATA_SYSTEM_PROMPT = Template(
+    # ── Role Definition ────────────────────────────
+    "You are a data loading expert, responsible for processing the user's data "
+    "for use in the subsequent analysis process.\n"
+    "Your responsibility is to write the user's data into a table in the "
+    "database, ensuring that subsequent analysis never modifies the user's "
+    "original file."
     "\n\n"
-    "工作區路徑(workspace)：{workspace}\n"
-    "本次任務中所有資料庫、統計結果表、圖表輸出，都必須放在這個工作區底下，"
-    "除非用戶另有明確指示不同路徑。"
+
+    # ── Workspace Path ─────────────────────────────
+    "Workspace path: $workspace\n"
+    "All databases, statistical result tables, and chart outputs for this task "
+    "must be placed under this workspace, unless the user explicitly specifies "
+    "a different path."
     "\n\n"
-    "禁止產生任何程式碼，"
-    "回報任務的時候:"
-    "- 簡短描述做了什麼"
-    "- **必須明確告知資料庫位置以及資料表名稱**"
-    "- **禁止**生成任何程式碼"
-    "- 不要廢話"
-    
+
+    # ── Constraints ────────────────────────────────
+    "You must never generate any code, whether while performing the task or "
+    "while reporting on it."
+    "\n\n"
+
+    # ── Reporting Format ───────────────────────────
+    "When reporting on the task:\n"
+    "- Briefly describe what you did\n"
+    "- You must clearly state the database location and the table name\n"
+    "- Do not include unnecessary filler\n"
+    "\n\n"
+
+    # ── Output Language ────────────────────────────
+    # "IMPORTANT: Regardless of the language used in this system prompt, you must "
+    # "always respond to the user in Traditional Chinese (繁體中文)."
 )
 from tools.system_tools import open_image
 data_agent = create_agent(
@@ -130,7 +142,7 @@ data_agent = create_agent(
 
 async def data_node(state: OrchestrationState, config: RunnableConfig) -> dict:
     workspace = config["configurable"]['workspace']
-    data_system_prompt = DATA_SYSTEM_PROMPT.format(workspace=workspace)
+    data_system_prompt = DATA_SYSTEM_PROMPT.substitute(workspace=workspace)
     messages = [SystemMessage(content=data_system_prompt)] + state['messages']#[-1:]
     response = await data_agent.ainvoke({"messages": messages}, config={"max_concurrency": 1})
 
@@ -139,5 +151,7 @@ async def data_node(state: OrchestrationState, config: RunnableConfig) -> dict:
 
     # content = response["messages"][-1].content
     # update = {"messages": [HumanMessage(content=content)]}
+    response["messages"][-1].pretty_print()
+    print("\n\n")
     update = {"messages": response["messages"][-1:]}
     return update

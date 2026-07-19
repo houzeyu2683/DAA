@@ -57,6 +57,7 @@ def get_columns_type_distribution(database_path: str, table_name: str, columns_p
                 matched_types.append(col_type)
                 break
 
+    print('finish "get_columns_type_distribution"')
     return dict(Counter(matched_types))
 
 
@@ -72,7 +73,6 @@ def read_statistic_table(database_path: str, statistic_table_name: str, top_numb
     """
 
     print('start "read_statistic_table"')
-
     con = duckdb.connect(database_path, read_only=True)
     try:
         df = con.execute(
@@ -85,7 +85,7 @@ def read_statistic_table(database_path: str, statistic_table_name: str, top_numb
         return f"表 {statistic_table_name} 沒有資料。"
 
     df = df.head(top_number) if top_number >= 0 else df.tail(-top_number)
-
+    print('finish "read_statistic_table"')
     return {"overview": df.to_string()}
 
 
@@ -120,7 +120,7 @@ def plot_box_chart(
         con.close()
 
     groups = {name: g[numeric_name].dropna() for name, g in df.groupby(category_name) if len(g) > 0}
-    print(groups)
+    # print(groups)
     if len(groups) < 2:
         return f"欄位 {category_name} 的分組數量不足，未畫圖。"
 
@@ -141,6 +141,7 @@ def plot_box_chart(
     except Exception as e:
         print(e)
 
+    print('finish "plot_box_chart"')
     return f"已將 {category_name} x {numeric_name} 的箱型圖存成圖檔，路徑：{save_path}"
 
 

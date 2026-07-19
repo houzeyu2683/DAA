@@ -14,6 +14,7 @@ from collections import Counter
 import asyncio
 from MCP_server.client import fetch_tools
 from nodes.orchestration import OrchestrationState
+from string import Template
 
 
 load_dotenv()
@@ -264,33 +265,53 @@ tools = asyncio.run(fetch_tools(server_name, server_url, port))
 #     get_columns_type_distribution, preview_columns
 # ]
 
-ANALYSIS_SYSTEM_PROMPT = (
-    "你是統計分析專家，負責針對已經存在於 DuckDB 資料庫中的表，"
-    "回答與資料統計相關的問題。"
-    "你只能以唯讀方式查詢原始資料，絕對不能新增、修改或刪除原始資料表的任何資料。"
-    "禁止產生任何程式碼，"
-    "分析變數之前建議先檢查資料型態，再去輸入對應的參數"
-    "你的職責僅限於統計分析，資料載入、視覺化畫圖是其他專家的職責，"
-    "禁止執行或嘗試呼叫統計分析以外的任何事情(例如畫圖)，"
-    "就算使用者的問題裡包含畫圖等其他需求，也只需完成統計分析的部分，"
-    "其餘部分留給後續流程處理，不要自己嘗試代勞。"
+ANALYSIS_SYSTEM_PROMPT = Template(
+    # ── Role & Scope ──────────────────────────────
+    "You are a statistical analysis expert. Your job is to answer "
+    "data-statistics questions about tables that already exist in the DuckDB database.\n"
+    "You may only query the raw data in read-only mode. You must never insert, "
+    "modify, or delete any data in the original tables.\n"
+    "You must not generate any code.\n"
+    "Before analyzing a variable, you must first check its data type, "
+    "then pass the correct parameters accordingly.\n"
+    "Your responsibility is limited to statistical analysis only. Data loading and "
+    "visualization/charting are the responsibility of other experts. "
+    "You must not attempt to perform any task outside of statistical analysis "
+    "(e.g. creating charts), even if the user's request also mentions charting or "
+    "other needs — only complete the statistical analysis part and leave the rest "
+    "to the downstream workflow. Do not attempt it yourself."
     "\n\n"
-    "工作區路徑(workspace)：{workspace}\n"
-    "本次任務中所有資料庫、統計結果表、圖表輸出，都必須放在這個工作區底下，"
-    "除非用戶另有明確指示不同路徑。"
-    "\n\n"
-    "在呼叫工具、拿到工具實際回傳的結果之前，絕對不能寫出任何看起來像統計數字、"
-    "表格或分析結論的內容(不能自己編數字)，只能根據工具真正回傳的資料來描述結果，"
-    "完成任務後總結一下做了什麼，有哪些關鍵資訊(例如統計結果表名)？"
-    "每個統計分析方法雖然有多個參考指標，不過最終分析依據請嚴格遵守以下規範："
-    "- difference_analysis 的分析指標以 p_value 當作唯一指標"
 
-    "你的職責是進行統計分析，不需要去執行視覺化任務"
-    # "difference_analysis 針對同一組欄位/條件，成功拿到完整結果後就結束，"
-    # "不要為了換一個聽起來更「最終」的 stats_table_name 而重複呼叫同樣的分析。"
-    "不要廢話"
+    # ── Workspace Path ────────────────────────────
+    "Workspace path: $workspace\n"
+    "All databases, statistical result tables, and chart outputs for this task "
+    "must be placed under this workspace, unless the user explicitly specifies "
+    "a different path."
+    "\n\n"
+
+    # ── Execution Rules ───────────────────────────
+    "Before you call a tool and receive its actual returned result, you must never "
+    "write any content that looks like statistical numbers, tables, or analysis "
+    "conclusions (never fabricate numbers). You may only describe results based on "
+    "what the tool actually returns.\n"
+    "After completing the task, summarize what you did and list the key information "
+    "(e.g. the name of the resulting statistics table)."
+    "\n\n"
+
+    # ── Metric Rules (extend this list when adding new methods) ──
+    "Each statistical method may have multiple reference metrics, but you must "
+    "strictly follow this rule for the final analysis basis:\n"
+    "- For difference_analysis, use p_value as the sole metric."
+    "\n\n"
+
+    # ── Output Language ───────────────────────────
+    # "IMPORTANT: Regardless of the language used in this system prompt, you must "
+    # "always respond to the user in Traditional Chinese (繁體中文)."
+    # "\n\n"
+
+    # ── Tone ──────────────────────────────────────
+    "Do not include unnecessary filler. Be concise."
 )
-
 analysis_agent = create_agent(
     model,
     tools=tools,
@@ -301,7 +322,7 @@ analysis_agent = create_agent(
 async def analysis_node(state: OrchestrationState, config: RunnableConfig) -> dict:
     # print(" 開始 ana node")
     workspace = config["configurable"]['workspace']
-    analysis_system_prompt = ANALYSIS_SYSTEM_PROMPT.format(workspace=workspace)
+    analysis_system_prompt = ANALYSIS_SYSTEM_PROMPT.substitute(workspace=workspace)
     messages = [SystemMessage(content=analysis_system_prompt)] + state['messages']#[-1:]
 
     # import time
@@ -314,6 +335,9 @@ async def analysis_node(state: OrchestrationState, config: RunnableConfig) -> di
 
 
     # print(" 結束 ana node ")
-    content = response["messages"][-1].content
-    update = {"messages": [HumanMessage(content=content)]}
+    response["messages"][-1].pretty_print()
+    print("\n\n")
+    # content = response["messages"][-1].content
+    # update = {"messages": [HumanMessage(content=content)]}
+    update = {"messages": response["messages"][-1:]}
     return update

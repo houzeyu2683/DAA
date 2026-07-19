@@ -11,7 +11,7 @@ from scipy import stats
 
 
 STATS_METRICS = {
-    "difference_analysis": "p_value"
+    "difference_analysis": "p_value"#""
 }
 
 
@@ -67,6 +67,7 @@ def get_table_shape(database_path: str, table_name: str) -> list:
         col_count = len(con.execute(f"DESCRIBE {table_name}").fetchall())
     finally:
         con.close()
+    print('finish "get_table_shape"')        
     return [row_count, col_count]
 
 
@@ -89,6 +90,7 @@ def get_columns_type(database_path: str, table_name: str, columns_name: list) ->
     finally:
         con.close()
     types_by_col = {row[0]: row[1] for row in schema}
+    print('finish "get_columns_type_distribution"')
     return {col: types_by_col[col] for col in columns_name if col in types_by_col}
 
 
@@ -130,6 +132,7 @@ def get_columns_type_distribution(database_path: str, table_name: str, columns_p
                 matched_types.append(col_type)
                 break
 
+    print('finish "get_columns_type_distribution"')
     return dict(Counter(matched_types))
 
 
@@ -152,6 +155,7 @@ def preview_columns(database_path: str, table_name: str) -> str:
     finally:
         con.close()
 
+    print('finish "preview_columns"')
     if len(columns) <= 12:
         return ','.join(columns)
     return ','.join(columns[:3]) + '......' + ','.join(columns[-3:])
@@ -192,6 +196,7 @@ def difference_analysis(
         numerics_pattern: 數值欄位的比對規則。
         top_number: 如果有指定想要看前幾個結果，可以用這個設定，預設是前20個
     """
+
     print('start "difference_analysis"')
     con = duckdb.connect(database_path, read_only=True)
     try:
@@ -240,6 +245,7 @@ def difference_analysis(
     # print(conclusion)
 
     preview = results_df.to_string(max_rows=20, show_dimensions=False)
+    print('finish "difference_analysis"')
     return {
         "stats_table_name": {
             stats_table_name: "統計結果存放在此。"

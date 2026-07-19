@@ -45,6 +45,7 @@ def load_table_to_database(table_path: str, database_path: str, table_name: str)
     finally:
         con.close()
 
+    print('finish "load_table_to_database"')
     return {"database_path": database_path, "table_name": table_name,
             "row_count": row_count, "column_count": column_count}
 
