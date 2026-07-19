@@ -1,42 +1,45 @@
-import os
+from nodes.orchestration import OrchestrationState
 from pathlib import Path
-
-import duckdb
-import matplotlib
-import matplotlib.pyplot as plt
+import os
+from typing import Optional
+import uuid
+import duckdb as db
+import pandas as pd
 from dotenv import load_dotenv
+from scipy import stats
+from langchain_core.messages import SystemMessage, HumanMessage
 from langchain.agents import create_agent
 from langchain.tools import tool
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage
 from langchain_core.runnables import RunnableConfig
-
-from nodes.coordination import CoordinationState
-from tools.default import list_columns, preview_table
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 load_dotenv()
-MODEL_NAME = os.environ["MODEL_NAME"]
-MODEL_URL = os.environ["MODEL_URL"]
-API_KEY = os.environ["API_KEY"]
+MODEL_NAME = os.environ["model_name"]
+MODEL_URL = os.environ["base_url"]
+API_KEY = os.environ["api_key"]
 model = ChatOpenAI(
     model=MODEL_NAME,
     temperature=0,
     base_url=MODEL_URL,
     api_key=API_KEY,
+    model_kwargs={"parallel_tool_calls": False}, # 畫多張圖會需要
 )
 
 
 @tool
-def read_statistic_table(database_path: str, statistic_table_name: str, top_number: int) -> dict:
-    """查看統計結果表中差異最顯著的前 N 筆資料(所有統計工具都會依 p_value 由小到大排序後保存到資料庫中(p_value 越小代表差異越顯著)。
+def read_statistic_table(database_path: str, statistic_table_name: str, top_number: int = 20) -> dict:
+    """查看統計結果表中差異最顯著的前 N 筆資料(所有統計工具都會依 p_value 
+    由小到大排序後保存到資料庫中(p_value 越小代表差異越顯著)。
 
     參數:
         database_path: DuckDB 資料庫檔案的路徑。
         statistic_table_name: 統計結果表名稱(例如 anova_with_cats_and_nums 產生的表)。
-        top_number: 要取出的筆數，預設從差異最大開始取前 N 筆；
-            若想改看差異最小的前 N 筆，將 top_number 設為負值(-N)，即可從表尾取出。
+        top_number: 要取出的筆數，預設從差異最大開始取前 20 筆
     """
-    con = duckdb.connect(database_path, read_only=True)
+    con = db.connect(database_path, read_only=True)
     try:
         df = con.execute(
             f"SELECT * FROM {statistic_table_name}"
@@ -53,7 +56,13 @@ def read_statistic_table(database_path: str, statistic_table_name: str, top_numb
 
 
 @tool
-def plot_box_chart(database_path: str, table_name: str, category_name: str, numeric_name: str, image_path: str) -> str:
+def plot_box_chart(
+    database_path: str, 
+    table_name: str, 
+    category_name: str, 
+    numeric_name: str, 
+    image_path: str
+) -> str:
     """對指定表裡的類別欄位(category_name)與數值欄位(numeric_name)畫箱型圖(box chart)，
     圖片存成 PNG 檔案，回傳檔案路徑與簡短說明文字。
 
@@ -64,7 +73,7 @@ def plot_box_chart(database_path: str, table_name: str, category_name: str, nume
         numeric_name: 數值欄位名稱(要畫分布的對象，畫在 y 軸)。
         image_path: 圖檔輸出路徑(建議放在 workspace 底下)。
     """
-    con = duckdb.connect(database_path, read_only=True)
+    con = db.connect(database_path, read_only=True)
     try:
         all_cols = [row[0] for row in con.execute(f"DESCRIBE {table_name}").fetchall()]
         if category_name not in all_cols or numeric_name not in all_cols:
@@ -78,25 +87,29 @@ def plot_box_chart(database_path: str, table_name: str, category_name: str, nume
     if len(groups) < 2:
         return f"欄位 {category_name} 的分組數量不足，未畫圖。"
 
-    fig, ax = plt.subplots()
-    ax.boxplot(groups.values(), tick_labels=list(groups.keys()))
-    ax.set_xlabel(category_name)
-    ax.set_ylabel(numeric_name)
-    ax.set_title(f"{numeric_name} by {category_name}")
-    plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
-    fig.tight_layout()
+    try:
+        fig, ax = plt.subplots()
+        ax.boxplot(groups.values(), tick_labels=list(groups.keys()))
+        ax.set_xlabel(category_name)
+        ax.set_ylabel(numeric_name)
+        ax.set_title(f"{numeric_name} by {category_name}")
+        plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
+        fig.tight_layout()
 
-    save_path = os.path.abspath(image_path)
-    Path(save_path).parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(save_path)
-    plt.close(fig)
+        save_path = os.path.abspath(image_path)
+        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(save_path)
+        plt.close(fig)
+
+    except Exception as e:
+        print(e)
 
     return f"已將 {category_name} x {numeric_name} 的箱型圖存成圖檔，路徑：{save_path}"
 
 
-tools = [list_columns, preview_table, read_statistic_table, plot_box_chart]
+tools = [read_statistic_table, plot_box_chart]
 
-CHART_NODE_PROMPT = (
+CHART_SYSTEM_PROMPT = (
     "你是資料分析師，負責解讀統計數據，使用視覺化技術來對原始資料進行畫圖，"
     "你的職責是閱讀統計數據，根據用戶的問題來視覺化資料。"
     "\n\n"
@@ -106,6 +119,7 @@ CHART_NODE_PROMPT = (
     "\n\n"
     "回報任務的時候**必須明確告知圖檔位置***。"
     "**禁止**生成任何程式碼。"
+    "不要廢話"
 )
 
 chart_agent = create_agent(
@@ -113,14 +127,27 @@ chart_agent = create_agent(
     tools=tools,
 )
 
+ATTEMPT = 3
+def chart_node(state: OrchestrationState, config: RunnableConfig) -> dict:
+    # print("畫圖")
+    workspace = config["configurable"]['workspace']
+    chart_system_prompt = CHART_SYSTEM_PROMPT.format(workspace=workspace)
+    messages = [SystemMessage(content=chart_system_prompt)] + state['messages']
 
-def chart_node(state: CoordinationState, config: RunnableConfig) -> dict:
-    content = CHART_NODE_PROMPT.format(workspace=config["configurable"]['workspace'])
-    messages = [SystemMessage(content=content)] + state['messages']
-    response = chart_agent.invoke({"messages": messages})
+    attempt = 0
+    while attempt < ATTEMPT:
+        try:
+            response = chart_agent.invoke({"messages": messages}, config={"max_concurrency": 1})
+            break
+        except Exception as e:
+            print(e)
+        attempt += 1
+        continue
 
-    for message in response['messages']:
-        message.pretty_print()
+    # for message in response['messages']:
+    #     message.pretty_print()
 
-    update = {"messages": response["messages"][1:]}
+    # print("畫圖END")
+    content = response["messages"][-1].content
+    update = {"messages": [HumanMessage(content=content)]}
     return update

@@ -11,9 +11,9 @@ from langchain_core.runnables import RunnableConfig
 
 
 load_dotenv()
-MODEL_NAME = os.environ["MODEL_NAME"]
-MODEL_URL = os.environ["MODEL_URL"]
-API_KEY = os.environ["API_KEY"]
+MODEL_NAME = os.environ["model_name"]
+MODEL_URL = os.environ["base_url"]
+API_KEY = os.environ["api_key"]
 model = ChatOpenAI(
     model=MODEL_NAME,
     temperature=0,
@@ -22,11 +22,11 @@ model = ChatOpenAI(
 )
 
 
-class CoordinationState(MessagesState):
+class OrchestrationState(MessagesState):
     next: str
 
 
-COORDINATION_SYSTEM_PROMPT = (
+ORCHESTRATION_SYSTEM_PROMPT = (
     "你是資料分析總指揮，負責協調三位專家，滿足用戶的資料分析需求：\n"
     "- data：資料載入專家，把用戶數據寫入資料庫，確保用戶原始數據不會受到任何編輯。\n"
     "- analysis：統計分析專家，對已存在於資料庫中的表做統計檢定，統計結果也會另外保存在資料庫中。\n"
@@ -36,7 +36,16 @@ COORDINATION_SYSTEM_PROMPT = (
     "本次任務中所有資料庫、統計結果表、圖表輸出，都必須放在這個工作區底下，"
     "除非用戶另有明確指示不同路徑。"
     "\n\n"
-    "讀取資料 → 統計分析 → 視覺化，是常見流程，但不是固定流程，"
+    "分析流程如下：\n"
+    "- 讀取資料 → 統計分析 → 視覺化\n"
+    "- 讀取資料 → 視覺化\n"
+    "- 讀取資料 → 統計分析\n"
+    "錯誤範例：\n"
+    "輸入：幫我對某某欄位進行分析\n"
+    "輸出：進行分析後畫圖\n\n"
+    "輸入：幫我對某某欄位進行畫圖\n"
+    "輸出：進行分析後畫圖\n\n"
+    "核心觀念：用戶沒有說的行為禁止去執行"
     "你必須根據目前的對話紀錄自行判斷：\n"
     "1. 只選擇這次任務真正還需要的專家，不要選擇用不到的專家。\n"
     "2. 如果某個步驟先前已經完成(例如用戶數據已寫入資料庫、或統計結果已存在)，"
@@ -65,13 +74,12 @@ def _check_system_prompt(messages: list) -> bool:
     if getattr(messages[0], "type") == "system": return True
     return False
 
-def coordination_node(state: CoordinationState, config: RunnableConfig) -> dict:
+def orchestration_node(state: OrchestrationState, config: RunnableConfig) -> dict:
+    workspace = config["configurable"]['workspace']
     messages = state["messages"]
     if not _check_system_prompt(messages):
-        content = COORDINATION_SYSTEM_PROMPT.format(
-            workspace=config["configurable"]['workspace']
-        )
-        messages = [SystemMessage(content=content)] + messages
+        system_prompt = ORCHESTRATION_SYSTEM_PROMPT.format(workspace=workspace)
+        messages = [SystemMessage(content=system_prompt)] + messages
 
     # messages = _ensure_system_prompt(state["messages"], COORDINATION_SYSTEM_PROMPT)
     task = model.with_structured_output(Task, method="function_calling").invoke(messages)

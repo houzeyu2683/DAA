@@ -1,25 +1,26 @@
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import StateGraph, START, END
-
-from nodes.coordination import coordination_node, CoordinationState
+from langgraph.types import RetryPolicy
+from langchain_core.messages import HumanMessage
+from nodes.orchestration import orchestration_node, OrchestrationState
 from nodes.data import data_node
 from nodes.analysis import analysis_node
 from nodes.chart import chart_node
 from nodes.summary import summary_node
-from routers.coordination import coordination_router
+from routers.orchestration import orchestration_router
+import uuid
 
-
-graph = StateGraph(CoordinationState)
-graph.add_node("coordination", coordination_node)
+graph = StateGraph(OrchestrationState)
+graph.add_node("orchestration", orchestration_node)
 graph.add_node("data", data_node)
 graph.add_node("analysis", analysis_node)
-graph.add_node("chart", chart_node)
+graph.add_node("chart", chart_node, retry=RetryPolicy(max_attempts=3))
 graph.add_node("summary", summary_node)
 
-graph.add_edge(START, "coordination")
+graph.add_edge(START, "orchestration")
 graph.add_conditional_edges(
-    "coordination",
-    coordination_router,
+    "orchestration",
+    orchestration_router,
     {
         "data": "data",
         "analysis": "analysis",
@@ -28,9 +29,9 @@ graph.add_conditional_edges(
         "reply": END,
     },
 )
-graph.add_edge("data", "coordination")
-graph.add_edge("analysis", "coordination")
-graph.add_edge("chart", "coordination")
+graph.add_edge("data", "orchestration")
+graph.add_edge("analysis", "orchestration")
+graph.add_edge("chart", "orchestration")
 graph.add_edge("summary", END)
 
 checkpointer = InMemorySaver()
@@ -40,29 +41,31 @@ workflow = graph.compile(checkpointer=checkpointer)
 config = {
     "configurable": {
         "thread_id": "666",
-        "workspace": '.data/G72602/workspace'
+        "workspace": '.data/G72602/workspace/' + uuid.uuid4().hex[:6]
     }
 }
-USER_DATA_PATH = ".data/archive/fifa_world_cup_2026_player_performance.csv"
-# DATABASE_PATH = ".data/tmp/data_agent_demo/database.db"
+USER_DATA_PATH = ".data/archive/data.csv"
 
-# question = (
-#     f"幫我讀取 {CSV_PATH} 檔案，資料庫路徑是 {DB_PATH}，"
-#     f"我要針對欄位 'minutes_played' 以及 'team' 的欄位進行 ANOVA 分析"
-# )
-# question = (
-#     f"幫我讀取 {USER_DATA_PATH} 檔案，資料庫路徑是 {DATABASE_PATH}，"
-#     f"我要針對欄位 'team' 以及 'age' 的欄位進行 ANOVA 分析，然後畫箱型圖。"
-# )
-question = (
-    f"幫我讀取 {USER_DATA_PATH} 檔案，"
-    f"我要針對欄位 'team' 以及 'age' 的欄位進行 ANOVA 分析，然後畫箱型圖。"
-)
 
 if __name__ == "__main__":
+
+    question = (
+        # 第一種
+        f"幫我讀取 {USER_DATA_PATH} 檔案，我要針對欄位 'minutes_played' 以及 '包含 'feat_' 的欄位"
+        f"進行差異分析，找出差異最大的前面五個結果並且畫成 box chart，給我一個報告"
+
+
+        # f"幫我讀取 {USER_DATA_PATH} 檔案，我要針對欄位 'minutes_played' 以及 '包含 'feat_' 的欄位進行差異分析"
+        # f"幫我讀取 {USER_DATA_PATH} 檔案，我要針對欄位 'minutes_played' 以及 '包含 'feat_' 的欄位進行差異分析，並找出差異最大的前面 3 個。"
+
+    )
+    # question = (
+    #     f"幫我讀取 {USER_DATA_PATH} 檔案，資料庫路徑是 {DATABASE_PATH}，"
+    #     f"我要針對欄位 'team' 以及 'age' 的欄位進行 ANOVA 分析，然後畫箱型圖。"
+    # )
+    state = OrchestrationState(messages=[HumanMessage(question)], next=None)
     result = workflow.invoke(
-        {"messages": [{"role": "user", "content": question}]},
+        state,
         config,
     )
-    for message in result["messages"]:
-        message.pretty_print()
+    print('done')
