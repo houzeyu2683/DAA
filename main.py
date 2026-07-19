@@ -59,14 +59,15 @@ async def main() -> bool:
     user_data_path = ".data/archive/data.csv"
     question = (
         # 第一種
-        f"幫我讀取 {user_data_path} 檔案，我要針對欄位 'minutes_played' 以及 '包含 'feat_' 的欄位"
-        f"進行差異分析，找出差異最大的前面五個結果並且畫成 box chart，給我一個報告"
+        # f"幫我讀取 {user_data_path} 檔案，我要針對欄位 'minutes_played' 以及 '包含 'feat_' 的欄位"
+        # f"進行差異分析，找出差異最大的前面五個結果並且畫成 box chart，給我一個報告"
         # 第二種
         # f"幫我讀取 {user_data_path} 檔案，我要針對欄位 'minutes_played' 以及 '包含 'feat_' 的欄位"
         # f"進行差異分析，找出差異最大的前面五個結果，給我一個報告"
         # 第三種
-        # f"幫我讀取 {user_data_path} 檔案，我要針對欄位 'minutes_played'"
-        # f" 以及 'feat_1、feat_4、feat_8、feat_6以及feat_17' 的欄位畫成 box chart"
+        # f"幫我讀取 {user_data_path} 檔案，我要針對欄位 'minutes_played' 以及 'feat_1' 的欄位畫成 box chart"
+        # 第四種
+        f"幫我讀取 {user_data_path} 檔案，我要欄位 'minutes_played' 去分別對 'feat_1'、'feat_4'、'feat_8'、'feat_6'以及'feat_17' 欄位畫成 box chart"
 
 
         # f"幫我讀取 {USER_DATA_PATH} 檔案，我要針對欄位 'minutes_played' 以及 '包含 'feat_' 的欄位進行差異分析"

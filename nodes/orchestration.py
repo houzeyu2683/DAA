@@ -16,7 +16,7 @@ model_url = os.environ["MODEL_URL"]
 model_key = os.environ["MODEL_KEY"]
 model = ChatOpenAI(
     model=model_name,
-    temperature=0,
+    temperature=0.2,
     base_url=model_url,
     api_key=model_key,
 )
@@ -55,6 +55,7 @@ ORCHESTRATION_SYSTEM_PROMPT = (
     "不需要呼叫任何專家，選擇 reply，並把要回覆用戶的內容寫在 reply 欄位。\n"
     "\n"
     "只能從 'data'、'analysis'、'chart'、'summary'、'reply' 五個選項中選一個，"
+    "範例: {{'next': 'data', 'reply': '...'}}"
     "作為接下來要交給誰處理。"
 )
 
@@ -86,7 +87,8 @@ def orchestration_node(state: OrchestrationState, config: RunnableConfig) -> dic
     # messages = _ensure_system_prompt(state["messages"], COORDINATION_SYSTEM_PROMPT)
     attempt = 0
     while attempt < ATTEMPT:
-        task = model.with_structured_output(Task, method="function_calling").invoke(messages)
+        # task = model.with_structured_output(Task, method="function_calling").invoke(messages)
+        task = model.with_structured_output(Task, method='json_mode').invoke(messages)
         if task:
             break
         attempt += 1

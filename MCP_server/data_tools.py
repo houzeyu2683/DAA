@@ -56,7 +56,6 @@ def check_database_exist(database_path: str) -> bool:
     return os.path.isfile(database_path)
 
 
-
 @mcp.tool()
 def check_table_exist(database_path: str, table_name: str) -> bool:
     """檢查指定的資料表是否存在於 DuckDB 資料庫中。
@@ -77,6 +76,13 @@ def check_table_exist(database_path: str, table_name: str) -> bool:
         con.close()
     return count > 0
 
+
+@mcp.tool()
+def check_file_exist(file_path: str) -> bool:
+    """檢查檔案是否存在"""
+
+    print('start "check_file_exist"')
+    return os.path.isfile(file_path)
 
 if __name__ == "__main__":
     

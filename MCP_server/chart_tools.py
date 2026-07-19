@@ -8,7 +8,7 @@ import duckdb
 from pathlib import Path
 import dotenv
 import os
-
+from collections import Counter
 
 dotenv.load_dotenv()
 SERVER_NAME = os.getenv("MCP_CHART_SERVER_NAME")
@@ -17,6 +17,47 @@ SERVER_PORT = os.getenv("MCP_CHART_SERVER_PORT")
 
 
 mcp = FastMCP(SERVER_NAME)
+
+
+@mcp.tool()
+def get_columns_type_distribution(database_path: str, table_name: str, columns_pattern: dict) -> dict:
+    """依欄位名稱比對規則，統計符合條件的欄位中各種型別各有幾個。
+
+    columns_pattern 格式是 {pattern字串: 比對方式}，例如:
+        - {"XXXX": "contains"}   欄位名稱包含 "XXXX"
+        - {"XXXX": "startwith"}  欄位名稱開頭是 "XXXX"
+        - {"XXXX": "endwith"}    欄位名稱結尾是 "XXXX"
+
+    輸出格式範例: {"BIGINT": 22, "VARCHAR": 123, ....}
+
+    參數:
+        database_path: DuckDB 資料庫檔案的路徑。
+        table_name: 要查詢的資料表名稱。
+        columns_pattern: 欄位名稱的比對規則。
+    """
+
+    print('start "get_columns_type_distribution"')
+    con = duckdb.connect(database_path, read_only=True)
+    try:
+        schema = con.execute(f"DESCRIBE {table_name}").fetchall()
+    finally:
+        con.close()
+
+    matched_types = []
+    for row in schema:
+        col_name, col_type = row[0], row[1]
+        for pattern, mode in columns_pattern.items():
+            if mode == "contains" and pattern in col_name:
+                matched_types.append(col_type)
+                break
+            if mode == "startwith" and col_name.startswith(pattern):
+                matched_types.append(col_type)
+                break
+            if mode == "endwith" and col_name.endswith(pattern):
+                matched_types.append(col_type)
+                break
+
+    return dict(Counter(matched_types))
 
 
 @mcp.tool()
@@ -79,6 +120,7 @@ def plot_box_chart(
         con.close()
 
     groups = {name: g[numeric_name].dropna() for name, g in df.groupby(category_name) if len(g) > 0}
+    print(groups)
     if len(groups) < 2:
         return f"欄位 {category_name} 的分組數量不足，未畫圖。"
 
