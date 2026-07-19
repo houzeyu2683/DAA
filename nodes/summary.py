@@ -15,15 +15,14 @@ from langchain_core.runnables import RunnableConfig
 from nodes.orchestration import OrchestrationState
 
 load_dotenv()
-MODEL_NAME = os.environ["model_name"]
-MODEL_URL = os.environ["base_url"]
-API_KEY = os.environ["api_key"]
-
+model_name = os.environ["MODEL_NAME"]
+model_url = os.environ["MODEL_URL"]
+model_key = os.environ["MODEL_KEY"]
 model = ChatOpenAI(
-    model=MODEL_NAME,
+    model=model_name,
     temperature=0,
-    base_url=MODEL_URL,
-    api_key=API_KEY,
+    base_url=model_url,
+    api_key=model_key,
 )
 
 SUMMARY_SYSTEM_PROMPT = (
@@ -36,6 +35,8 @@ SUMMARY_SYSTEM_PROMPT = (
     "結論一律以工具實際回傳的數字為準，不能自己編數字。\n"
     "2. 其次才是補充關鍵資訊(例如資料庫路徑、表名、統計結果表名、圖檔路徑)。\n"
     "3. 不要反問使用者沒有要求過的下一步(例如使用者沒問畫圖，就不要主動問要不要畫圖)。\n"
+
+    "回答的內容要包含過去執行的每個步驟，不要廢話"
     "禁止產生任何程式碼。"
 )
 summary_agent = create_agent(model)
@@ -52,8 +53,8 @@ def summary_node(state: OrchestrationState) -> dict:
     # messages = _ensure_system_prompt(state["messages"], SUMMARY_PROMPT)
     response = summary_agent.invoke({"messages": messages})
 
-    for message in response['messages']:
-        message.pretty_print()
+    # for message in response['messages']:
+    #     message.pretty_print()
 
 
     update = {"messages": response["messages"][-1:]}

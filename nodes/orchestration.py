@@ -11,14 +11,14 @@ from langchain_core.runnables import RunnableConfig
 
 
 load_dotenv()
-MODEL_NAME = os.environ["model_name"]
-MODEL_URL = os.environ["base_url"]
-API_KEY = os.environ["api_key"]
+model_name = os.environ["MODEL_NAME"]
+model_url = os.environ["MODEL_URL"]
+model_key = os.environ["MODEL_KEY"]
 model = ChatOpenAI(
-    model=MODEL_NAME,
+    model=model_name,
     temperature=0,
-    base_url=MODEL_URL,
-    api_key=API_KEY,
+    base_url=model_url,
+    api_key=model_key,
 )
 
 
@@ -74,6 +74,8 @@ def _check_system_prompt(messages: list) -> bool:
     if getattr(messages[0], "type") == "system": return True
     return False
 
+
+ATTEMPT = 3
 def orchestration_node(state: OrchestrationState, config: RunnableConfig) -> dict:
     workspace = config["configurable"]['workspace']
     messages = state["messages"]
@@ -82,7 +84,17 @@ def orchestration_node(state: OrchestrationState, config: RunnableConfig) -> dic
         messages = [SystemMessage(content=system_prompt)] + messages
 
     # messages = _ensure_system_prompt(state["messages"], COORDINATION_SYSTEM_PROMPT)
-    task = model.with_structured_output(Task, method="function_calling").invoke(messages)
+    attempt = 0
+    while attempt < ATTEMPT:
+        task = model.with_structured_output(Task, method="function_calling").invoke(messages)
+        if task:
+            break
+        attempt += 1
+        continue
+
+    assert attempt!=3, "超過嘗試次數"
+    # print(attempt)
+
     update = {"next": task['next']}
     if task['next'] == "reply":
         update["messages"] = [AIMessage(content=task['reply'] or "")]

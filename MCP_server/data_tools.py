@@ -4,10 +4,14 @@ from pathlib import Path
 import dotenv
 import os
 
+
 dotenv.load_dotenv()
+SERVER_NAME = os.getenv("MCP_DATA_SERVER_NAME")
+SERVER_URL = os.getenv("MCP_DATA_SERVER_URL")
+SERVER_PORT = os.getenv("MCP_DATA_SERVER_PORT")
 
 
-mcp = FastMCP("data_tools")
+mcp = FastMCP(SERVER_NAME)
 
 
 @mcp.tool()
@@ -21,6 +25,7 @@ def load_table_to_database(table_path: str, database_path: str, table_name: str)
         table_name: 寫入後的資料表名稱。
     """
 
+    print('start "load_table_to_database"')
     Path(database_path).parent.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect(database_path)
     try:
@@ -45,18 +50,10 @@ def load_table_to_database(table_path: str, database_path: str, table_name: str)
 
 
 @mcp.tool()
-def check_table_exist(database_path: str, table_name: str) -> bool:
-    """檢查指定的資料表是否存在於 DuckDB 資料庫中。"""
+def check_database_exist(database_path: str) -> bool:
+    """檢查指定的資料庫是否存在。"""
 
-    con = duckdb.connect(database_path, read_only=True)
-    try:
-        count = con.execute(
-            "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = ?",
-            [table_name],
-        ).fetchone()[0]
-    finally:
-        con.close()
-    return count > 0
+    return os.path.isfile(database_path)
 
 
 
@@ -68,6 +65,8 @@ def check_table_exist(database_path: str, table_name: str) -> bool:
         database_path: DuckDB 資料庫檔案的路徑。
         table_name: 要檢查的資料表名稱。
     """
+
+    print('start "check_table_exist"')
     con = duckdb.connect(database_path, read_only=True)
     try:
         count = con.execute(
@@ -80,7 +79,8 @@ def check_table_exist(database_path: str, table_name: str) -> bool:
 
 
 if __name__ == "__main__":
-
-    mcp.run(transport="streamable-http", port=8001)
+    
+    port = int(SERVER_PORT)
+    mcp.run(transport="streamable-http", host=SERVER_URL, port=port)
 
 
