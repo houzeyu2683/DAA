@@ -1,71 +1,60 @@
-from langgraph.checkpoint.memory import InMemorySaver
-from langgraph.graph import StateGraph, START, END
-from langgraph.types import RetryPolicy
-from langchain_core.messages import HumanMessage
-from nodes.orchestration import orchestration_node, OrchestrationState
-from nodes.data import data_node
-from nodes.analysis import analysis_node
-from nodes.chart import chart_node
-from nodes.summary import summary_node
-from routers.orchestration import orchestration_router
+import os
 import uuid
 
-graph = StateGraph(OrchestrationState)
-graph.add_node("orchestration", orchestration_node)
-graph.add_node("data", data_node)
-graph.add_node("analysis", analysis_node)
-graph.add_node("chart", chart_node, retry=RetryPolicy(max_attempts=3))
-graph.add_node("summary", summary_node)
+from dotenv import load_dotenv
+from langchain_openai import ChatOpenAI
+from langchain.agents import create_agent
+from langgraph.checkpoint.memory import InMemorySaver
 
-graph.add_edge(START, "orchestration")
-graph.add_conditional_edges(
-    "orchestration",
-    orchestration_router,
-    {
-        "data": "data",
-        "analysis": "analysis",
-        "chart": "chart",
-        "summary": "summary",
-        "reply": END,
-    },
+from tools.default_tools import (
+    is_file_exist,
+    create_database,
+    create_table,
+    is_columns_exist,
+    select_columns,
+    preview_table,
+    export_table,
 )
-graph.add_edge("data", "orchestration")
-graph.add_edge("analysis", "orchestration")
-graph.add_edge("chart", "orchestration")
-graph.add_edge("summary", END)
-
-checkpointer = InMemorySaver()
-workflow = graph.compile(checkpointer=checkpointer)
 
 
-config = {
-    "configurable": {
-        "thread_id": "666",
-        "workspace": '.data/G72602/workspace/' + uuid.uuid4().hex[:6]
-    }
-}
-USER_DATA_PATH = ".data/archive/data.csv"
+load_dotenv()
+
+model = ChatOpenAI(
+    model=os.environ["MODEL_NAME"],
+    base_url=os.environ["MODEL_URL"],
+    api_key=os.environ["MODEL_KEY"],
+    temperature=0,
+    model_kwargs={"parallel_tool_calls": False},
+)
+
+tools = [
+    is_file_exist,
+    create_database,
+    create_table,
+    is_columns_exist,
+    select_columns,
+    preview_table,
+    export_table,
+]
+
+agent = create_agent(model, tools=tools, checkpointer=InMemorySaver())
+
+config = {"configurable": {"thread_id": str(uuid.uuid4())}}
 
 
 if __name__ == "__main__":
+    print("多輪對話測試，輸入 exit 離開。")
+    prev_len = 0
+    while True:
+        user_input = input("\n你: ")
+        if user_input.strip().lower() in {"exit", "quit"}:
+            break
 
-    question = (
-        # 第一種
-        f"幫我讀取 {USER_DATA_PATH} 檔案，我要針對欄位 'minutes_played' 以及 '包含 'feat_' 的欄位"
-        f"進行差異分析，找出差異最大的前面五個結果並且畫成 box chart，給我一個報告"
+        response = agent.invoke(
+            {"messages": [{"role": "user", "content": user_input}]},
+            config=config,
+        )
 
-
-        # f"幫我讀取 {USER_DATA_PATH} 檔案，我要針對欄位 'minutes_played' 以及 '包含 'feat_' 的欄位進行差異分析"
-        # f"幫我讀取 {USER_DATA_PATH} 檔案，我要針對欄位 'minutes_played' 以及 '包含 'feat_' 的欄位進行差異分析，並找出差異最大的前面 3 個。"
-
-    )
-    # question = (
-    #     f"幫我讀取 {USER_DATA_PATH} 檔案，資料庫路徑是 {DATABASE_PATH}，"
-    #     f"我要針對欄位 'team' 以及 'age' 的欄位進行 ANOVA 分析，然後畫箱型圖。"
-    # )
-    state = OrchestrationState(messages=[HumanMessage(question)], next=None)
-    result = workflow.invoke(
-        state,
-        config,
-    )
-    print('done')
+        for message in response["messages"][prev_len:]:
+            message.pretty_print()
+        prev_len = len(response["messages"])
