@@ -1,5 +1,6 @@
 import os
 import uuid
+from pathlib import Path
 
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
@@ -11,11 +12,11 @@ from langchain_core.callbacks import get_usage_metadata_callback
 from tools.system import (
     is_file_exist,
     is_folder_exist,
-    list_files,
-    list_folders,
-    search_files,
-    search_files_with_regular_expression,
-    read_file,
+    list_file_names,
+    list_folder_names,
+    search_file_names,
+    search_file_names_with_regular_expression,
+    read_file_content,
     create_folder,
     create_file,
     write_content_in_file,
@@ -40,14 +41,15 @@ class LoggingSummarizationMiddleware(SummarizationMiddleware):
         return result
 
 
-load_dotenv()
+load_dotenv(Path(__file__).parent / ".env")
 
 model = ChatOpenAI(
     model=os.environ["MODEL_NAME"],
     base_url=os.environ["MODEL_URL"],
     api_key=os.environ["MODEL_KEY"],
     temperature=0,
-    model_kwargs={"parallel_tool_calls": False},
+    extra_body={"reasoning": {"enabled": False}}
+    # model_kwargs={"parallel_tool_calls": False},
     # OpenRouter 會把同一個模型路由到多家 provider，若選到的 provider
     # 不支援圖片輸入就會 404。gemma-4-26b-a4b-it 目前只有 Google 自己
     # 上架的 endpoint 看起來有完整支援圖片，所以指定路由過去。
@@ -57,11 +59,11 @@ model = ChatOpenAI(
 tools = [
     is_file_exist,
     is_folder_exist,
-    list_files,
-    list_folders,
-    search_files,
-    search_files_with_regular_expression,
-    read_file,
+    list_file_names,
+    list_folder_names,
+    search_file_names,
+    search_file_names_with_regular_expression,
+    read_file_content,
     create_folder,
     create_file,
     write_content_in_file,
@@ -75,7 +77,7 @@ agent = create_agent(
     middleware=[
         LoggingSummarizationMiddleware(
             model=model,
-            trigger=("tokens", 4000),
+            trigger=("tokens", 40000),
             keep=("messages", 20),
         ),
     ],

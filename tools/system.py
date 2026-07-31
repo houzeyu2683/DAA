@@ -19,100 +19,104 @@ def is_folder_exist(folder_path: str) -> bool:
     return os.path.isdir(folder_path)
 
 
-def list_files(folder_path: str, offset_index: int = 0, limit_number: int = 20) -> dict:
+def list_file_names(folder_path: str, base_index: int = 0, offset_number: int = 20) -> dict:
     """瀏覽資料夾底下的檔案，為了避免過長，預設指定一個索引範圍。"""
 
     all_paths = Path(folder_path).iterdir()
     all_file_names = [path.name for path in all_paths if path.is_file()]
-    all_file_total = len(all_file_names)
-    limit_index = offset_index + limit_number
-    file_names = all_file_names[offset_index: limit_index]
+    file_name_total = len(all_file_names)
+    offset_index = base_index + offset_number
+    file_names = all_file_names[base_index: offset_index]
     return {
-        'all_file_total': all_file_total,
-        'offset_index': offset_index,
-        'limit_number': limit_number,
+        'file_name_total': file_name_total,
+        'base_index': base_index,
+        'offset_number': offset_number,
         'file_names': file_names
     }
 
 
-def list_folders(folder_path: str, offset_index: int = 0, limit_number: int = 20) -> dict:
+def list_folder_names(folder_path: str, base_index: int = 0, offset_number: int = 20) -> dict:
     """瀏覽資料夾底下的資料夾，為了避免過長，預設指定一個索引範圍。"""
 
     all_paths = Path(folder_path).iterdir()
     all_folder_names = [path.name for path in all_paths if path.is_dir()]
-    all_folder_total = len(all_folder_names)
-    limit_index = offset_index + limit_number
-    folder_names = all_folder_names[offset_index: limit_index]
+    folder_name_total = len(all_folder_names)
+    offset_index = base_index + offset_number
+    folder_names = all_folder_names[base_index: offset_index]
     return {
-        'all_folder_total': all_folder_total,
-        'offset_index': offset_index,
-        'limit_number': limit_number,
+        'folder_name_total': folder_name_total,
+        'base_index': base_index,
+        'offset_number': offset_number,
         'folder_names': folder_names
     }
 
 
-def search_files(folder_path: str, file_name: str, offset_index: int = 0, limit_number: int = 20) -> dict:
+def search_file_names(folder_path: str, file_name: str, base_index: int = 0, offset_number: int = 20) -> dict:
     """在指定資料夾底下遞歸的尋找某些檔案，為了避免過長，預設指定一個索引範圍。"""
 
-    all_matched_paths = Path(folder_path).rglob(file_name)
-    all_matched_file_names = [
-        path.name for path in all_matched_paths if path.is_file()
+    matched_paths = Path(folder_path).rglob(file_name)
+    matched_file_names = [
+        path.name for path in matched_paths if path.is_file()
     ]
 
-    all_matched_file_total = len(all_matched_file_names)
-    limit_index = offset_index + limit_number
-    matched_file_names = all_matched_file_names[offset_index: limit_index]
+    matched_file_name_total = len(matched_file_names)
+    offset_index = base_index + offset_number
+    file_names = matched_file_names[base_index: offset_index]
     return {
-        'all_matched_file_total': all_matched_file_total,
-        'offset_index': offset_index,
-        'limit_number': limit_number,
-        'matched_file_names': matched_file_names
+        'matched_file_name_total': matched_file_name_total,
+        'base_index': base_index,
+        'offset_number': offset_number,
+        'file_names': file_names
     }
 
 
 
-def search_files_with_regular_expression(folder_path: str, regular_expression: str, offset_index: int = 0, limit_number: int = 20) -> dict:
+def search_file_names_with_regular_expression(folder_path: str, regular_expression: str, base_index: int = 0, offset_number: int = 20) -> dict:
     """在指定資料夾底下遞歸的使用正規語法尋找某些檔案，為了避免過長，預設指定一個索引範圍。"""
 
     all_paths = Path(folder_path).rglob('*')
     pattern_syntax = re.compile(regular_expression)
-    all_matched_file_names = [
-        str(path) for path in all_paths 
+    matched_file_names = [
+        str(path) for path in all_paths
         if path.is_file() and pattern_syntax.search(path.name)
     ]
-    all_matched_file_total = len(all_matched_file_names)
-    limit_index = offset_index + limit_number
-    matched_file_names = all_matched_file_names[offset_index: limit_index]
+    matched_file_name_total = len(matched_file_names)
+    offset_index = base_index + offset_number
+    file_names = matched_file_names[base_index: offset_index]
     return {
-        'all_matched_file_total': all_matched_file_total,
-        'offset_index': offset_index,
-        'limit_number': limit_number,
-        'matched_file_names': matched_file_names
+        'matched_file_name_total': matched_file_name_total,
+        'base_index': base_index,
+        'offset_number': offset_number,
+        'file_names': file_names
     }
 
 
 
-def read_file(file_path: str, offset_index: int = 0, limit_number: int = 20) -> dict:
+def read_file_content(file_path: str, base_line: int = 1, offset_number: int = 20) -> dict:
     """讀取檔案內容，為了避免過長，預設指定一個索引範圍。"""
 
-    limit_index = offset_index + limit_number
+    base_index = base_line - 1
+    offset_index = base_index + offset_number
     with open(file_path, "r", encoding="utf-8") as all_content:
-        select_content = itertools.islice(
+        file_content_iteration = itertools.islice(
             all_content, 
-            offset_index, 
-            limit_index
+            base_index, 
+            offset_index
         )
-        select_lines = list(select_content)
-    line_iteration = enumerate(select_lines, start=offset_index + 1)
-    content_lines = [
-        f"{index}\t{content.rstrip(chr(10))}" 
-        for index, content in line_iteration
+        file_content_list = list(file_content_iteration)
+
+    file_content_iteration = enumerate(
+        file_content_list, start=base_line
+    )
+    file_content_list = [
+        f"{line}\t{content.rstrip(chr(10))}" 
+        for line, content in file_content_iteration
     ]
-    file_content = "\n".join(content_lines)
+    file_content = "\n".join(file_content_list)
     return {
         "file_content": file_content,
-        "offset_index": offset_index,
-        "limit_number": limit_number   
+        "base_line": base_line,
+        "offset_number": offset_number   
     }
 
 
@@ -142,18 +146,18 @@ def create_file(file_path: str) -> dict:
     }
 
 
-def write_content_in_file(file_path: str, content_character: str, write_mode: Literal["append", "overwrite"] = 'append') -> dict:
+def write_content_in_file(file_path: str, written_content: str, write_mode: Literal["append", "overwrite"] = 'append') -> dict:
     """將指定內容寫入檔案，write_mode 可選擇 append(附加在檔案末端)或 overwrite(覆蓋整份檔案)。"""
 
     file_mode = 'a' if write_mode == 'append' else 'w'
     with open(file_path, file_mode, encoding="utf-8") as file_paper:
-        file_paper.write(content_character)
-    written_character_total = len(content_character)
+        file_paper.write(written_content)
+    written_content_total = len(written_content)
 
     return {
         'file_path': file_path,
         'write_mode': write_mode,
-        'written_character_total': written_character_total
+        'written_content_total': written_content_total
     }
 
 
@@ -162,14 +166,17 @@ def view_image(image_path: str) -> list:
 
     mime_type, _ = mimetypes.guess_type(image_path)
     with open(image_path, "rb") as image_file:
-        encoded_image = base64.b64encode(image_file.read()).decode("utf-8")
+        image_code = base64.b64encode(image_file.read()).decode("utf-8")
 
+    url = f"data:{mime_type or 'image/png'};base64,{image_code}"
     return [
         {
             "type": "image_url",
             "image_url": {
-                "url": f"data:{mime_type or 'image/png'};base64,{encoded_image}"
+                "url": url
             },
         }
     ]
+
+
 
