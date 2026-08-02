@@ -1,4 +1,7 @@
 #
+.chainlit
+.files
+.history
 *.csv
 *.db
 *db
