@@ -1,10 +1,13 @@
 import os
 from collections.abc import AsyncIterator
+from typing import Any
 
 from dotenv import load_dotenv
 from langchain.agents import create_agent
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import InMemorySaver
+
+from agenticend.tools.system import is_file_exist
 
 
 load_dotenv()
@@ -16,16 +19,21 @@ model = ChatOpenAI(
     temperature=0,
 )
 
-# 還沒接工具，先用空 tools 讓 agent 純聊天，之後照規劃再慢慢補上。
+# is_file_exist 先當測試工具，驗證加了 tool 之後 stream() 還能不能正常運作。
 agent = create_agent(
     model,
-    tools=[],
+    tools=[is_file_exist],
     checkpointer=InMemorySaver(),
 )
 
 
-async def stream(thread_id: str, user_message: str) -> AsyncIterator[str]:
+async def stream(
+    thread_id: str, user_message: str, callbacks: list[Any] | None = None
+) -> AsyncIterator[str]:
     config = {"configurable": {"thread_id": thread_id}}
+    if callbacks:
+        config["callbacks"] = callbacks
+
     async for chunk, _ in agent.astream(
         {"messages": [{"role": "user", "content": user_message}]},
         config=config,
