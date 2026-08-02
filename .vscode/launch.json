@@ -5,7 +5,7 @@
             "name": "Chainlit: frontend/application.py",
             "type": "debugpy",
             "request": "launch",
-            "python": "C:\\Users\\houzeyu2683\\.conda\\envs\\DAA\\python.exe",
+            "python": "/home/houzeyu2683/.conda/envs/DAA/bin/python",
             "module": "chainlit",
             "args": ["run", "frontend/application.py"],
             "console": "integratedTerminal",

@@ -1,97 +1,144 @@
 import sys
 import tempfile
 import uuid
-from pathlib import Path
-
 import chainlit as cl
+import dotenv 
+import os
+
+
+from langchain_openai import ChatOpenAI
+from langchain_core.runnables import RunnableConfig
+from string import Template
+from pathlib import Path
+from langchain_core.messages import SystemMessage, HumanMessage
+
+
+from agenticend import workflow
+from frontend.utilities import (
+    is_files_in_user_message,
+    # get_file_names,
+    create_database,
+    create_table_with_file_path,
+)
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from agenticend.agent import stream as agent_stream
 
-
-WELCOME_MESSAGE = (
-    "你好，我是資料分析助理。\n\n"
-    "把 CSV 檔案拖進來（可以一次選多個），或直接跟我聊聊你想做的分析。\n\n"
-    "＿目前這是介面骨架，還沒接上真正的分析邏輯，訊息會先用假回應頂著。＿"
-)
+agent = workflow.get_agent()
 
 
 @cl.on_chat_start
 async def on_chat_start():
+    
     # 模擬登入後已知的使用者身分，先寫死，之後接真的認證再換掉這裡。
-    user_id = "anonymous"
-    thread_id = str(uuid.uuid4())
-    workspace = f".data/{user_id}/{thread_id}"
+    user_id = "G72602"
+    thread_id = uuid.uuid4().hex[0:4]
+    # chat_workspace = f".data/{user_id}/{thread_id}"
 
-    cl.user_session.set("user_id", user_id)
-    cl.user_session.set("thread_id", thread_id)
-    cl.user_session.set("workspace", workspace)
-
-    # 悄悄把 workspace 資訊送進這個 thread 的對話歷史，
-    # 讓 LLM 之後每一輪都能在上下文裡看到，不顯示給使用者看。
-    seed_message = (
-        f"系統資訊：這個對話的資料工作目錄（workspace）是 {workspace}，"
-        "之後儲存或查詢資料時請使用這個路徑。"
+    #
+    user_information = Template(
+        "用戶基本資訊：\n"
+        "user_id: $user_id\n"
+        "thread_id: $thread_id\n"
+        # "chat_workspace: $chat_workspace\n"
+        '\n'
+        "接下來的對話中，如果涉及儲存或查詢資料時請參考這些資訊。"
+    ).substitute(
+        user_id=user_id,
+        thread_id=thread_id,
+        # chat_workspace=chat_workspace
     )
-    async for token in agent_stream(thread_id, seed_message):
-        print(token, end="", flush=True)
 
-    await cl.Message(content=WELCOME_MESSAGE).send()
+    #
+    
+    messages = {"messages": [SystemMessage(content=user_information)]}
+    config={
+        "configurable": {
+            'user_id': user_id,
+            'thread_id': thread_id,
+            # 'chat_workspace': chat_workspace
+        }
+    }
+    response = await agent.ainvoke(messages, config=config)
+    response["messages"][-1].pretty_print()
+
+    #
+    cl.user_session.set('config', config)
+    
+    #
+    wellcome_message = (
+        "你好，我是你的資料分析助理，"
+        "請把 CSV 檔案拖進來，讓我協助你或做分析。"
+    )
+    await cl.Message(content=wellcome_message).send()
 
 
 @cl.on_message
 async def on_message(user_message: cl.Message):
 
-    # 檢查是否帶表格檔案，帶檔案預先備份到資料庫，
-    # 如果上傳非表格檔案，暫時不處理。
+    config = cl.user_session.get('config')
+    
+    # 檢查是否帶檔案。
     if is_files_in_user_message(user_message):
+        user_id = config.get("configurable").get('user_id')
+        thread_id = config.get("configurable").get('thread_id')
+        database_path = os.path.join(
+            '.data', user_id, thread_id, 'database.db'
+        )
         create_database(database_path)
-        for file_name in get_file_names(user_message):
+        saved_file_names, saved_table_names = [], []
+        saved_total = 0
+        for element in user_message.elements:
+            file_path, file_name = element.path, element.name
             if 'csv' not in file_name:
-                print('目前只處理 csv')
-                print(f'先略 {file_name}')
                 continue
-            create_table_with_file_name(database_path, table_name, file_name)
-            save_table_file
-        workspace
-        thread_id
-        
-        write_table_content_to
-    csv_files = [
-        element
-        for element in user_message.elements
-        if (element.name or "").lower().endswith(".csv")
-    ]
+            # file_name = 'fifa_world_cup_2026_player_performance.csv'
+            table_name = Path(file_name).stem.replace(' ', '_').lower()
+            create_table_with_file_path(database_path, table_name, file_path)
+            saved_file_names.append(file_name)
+            saved_table_names.append(table_name)
+            saved_total += 1
+            continue
+        await cl.Message(content=f"已存入 {saved_total} 個 CSV 檔").send()
 
-    if csv_files:
-        names = "、".join(f.name for f in csv_files)
-        await cl.Message(
-            content=f"收到 {len(csv_files)} 個檔案：{names}\n（stub：尚未實際存進 workspace 或分析）"
-        ).send()
-        return
+        if saved_total>0:
+            # 把上傳結果也告訴模型，讓它之後回答時知道有這些資料表可用。
+            file_names = ",".join(saved_file_names)
+            table_names = ",".join(saved_table_names)
+            file_information = Template(
+                "系統資訊：\n"
+                "使用者上傳 CSV 檔案：$file_names\n"
+                "資料庫位置：$database_path\n"
+                "對應資料表名稱：$table_names\n"
+                "\n"
+                "之後若使用者提到這些資料，請參考這份資訊。"
+            ).substitute(
+                file_names=file_names,
+                database_path=database_path,
+                table_names=table_names,
+            )
+            messages = {
+                "messages": [SystemMessage(content=file_information)]
+            }
+            response = await agent.ainvoke(
+                messages,
+                config=config,
+            )
+            response["messages"][-1].pretty_print()
 
-    if "下載" in user_message.content or "download" in user_message.content.lower():
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".csv", delete=False, encoding="utf-8"
-        ) as f:
-            f.write("col_a,col_b\n1,2\n3,4\n")
-            stub_path = f.name
-
-        await cl.Message(
-            content="這是一個假的分析結果，示範下載流程用：",
-            elements=[cl.File(name="result.csv", path=stub_path, display="inline")],
-        ).send()
-        return
+    # 處理單純文字
+    messages = {"messages": [HumanMessage(content=user_message.content)]}
 
     reply = cl.Message(content="")
     await reply.send()
 
-    thread_id = cl.user_session.get("thread_id")
-    callback_handler = cl.AsyncLangchainCallbackHandler()
-    async for token in agent_stream(
-        thread_id, user_message.content, callbacks=[callback_handler]
-    ):
-        await reply.stream_token(token)
+    astream = agent.astream(
+        messages,
+        config=config,
+        stream_mode="messages"
+    )
+    async for chunk, _ in astream:
+        if chunk.content:
+            await reply.stream_token(chunk.content)
 
     await reply.update()
