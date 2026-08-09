@@ -25,11 +25,15 @@ def draw_bar_chart(
     table_name: str,
     category_column: str,
     value_column: str,
+    order_column: str,
+    descending: bool,
     image_path: str,
-    horizontal_mode: bool 
+    horizontal_mode: bool,
 ) -> dict:
-    """從指定資料表讀取一個類別欄位跟一個數值欄位,畫成長條圖並存檔,
-    horizontal_mode 決定長條方向(True 為水平、False 為垂直)。
+    """從指定資料表讀取一個類別欄位跟一個數值欄位,依照 order_column
+    (可以是欄位名稱,也可以是運算式,例如 "ABS(similarity_score)")
+    排序後畫成長條圖並存檔,horizontal_mode 決定長條方向
+    (True 為水平、False 為垂直)。
     常見情境是讀取 analysis 已經整理好類別與數值的結果表(例如相似度分析
     產生的結果),但不限於此,任何有類別欄位跟數值欄位的資料表都適用。"""
 
@@ -37,13 +41,21 @@ def draw_bar_chart(
     table_name = parse_characters(table_name)
     category_column = parse_characters(category_column)
     value_column = parse_characters(value_column)
+    order_column = parse_characters(order_column)
     image_path = parse_characters(image_path)
+    direction = "DESC" if descending else "ASC"
 
     with duckdb.connect(database_path, read_only=True) as connection:
         data = connection.execute(
             f"SELECT {category_column}, {value_column} "
-            f"FROM {table_name}"
+            f"FROM {table_name} "
+            f"ORDER BY {order_column} {direction}"
         ).fetchdf()
+
+    if horizontal_mode:
+        # barh 會把資料的第一列畫在最下面,要反過來,
+        # 畫面上由上到下才會符合 order_column/descending 指定的排序
+        data = data.iloc[::-1]
 
     with seaborn.axes_style("whitegrid"):
         fig = Figure()

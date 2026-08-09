@@ -1,0 +1,199 @@
+=== stream() 細粒度測試 ===
+thread_id: 035f9c05-f1b6-4c9b-a1c0-8143fdd46229
+prompt: 我想對 age 與包含 passes 的欄位做相似度分析,然後把分析結果畫成水平長條圖存起來
+
+--- yield #1 ---
+{
+  "level": "node",
+  "node_name": "planning",
+  "error": false,
+  "content": null
+}
+
+--- yield #2 ---
+{
+  "level": "node",
+  "node_name": "orchestration",
+  "error": false,
+  "content": null
+}
+
+--- yield #3 ---
+{
+  "level": "tool_call",
+  "node_name": "data",
+  "tool_name": "is_database_exist",
+  "tool_args": {
+    "database_path": ".data/data.db"
+  }
+}
+
+--- yield #4 ---
+{
+  "level": "tool_result",
+  "node_name": "data",
+  "tool_name": "is_database_exist",
+  "content": "true"
+}
+
+--- yield #5 ---
+{
+  "level": "tool_call",
+  "node_name": "data",
+  "tool_name": "is_table_exist",
+  "tool_args": {
+    "database_path": ".data/data.db",
+    "table_name": "fifa_world_cup_2026_player_performance"
+  }
+}
+
+--- yield #6 ---
+{
+  "level": "tool_result",
+  "node_name": "data",
+  "tool_name": "is_table_exist",
+  "content": "true"
+}
+
+--- yield #7 ---
+{
+  "level": "tool_call",
+  "node_name": "data",
+  "tool_name": "search_columns",
+  "tool_args": {
+    "database_path": ".data/data.db",
+    "regular_expression": "passes",
+    "table_name": "fifa_world_cup_2026_player_performance"
+  }
+}
+
+--- yield #8 ---
+{
+  "level": "tool_result",
+  "node_name": "data",
+  "tool_name": "search_columns",
+  "content": "{\"search_column_total\": 3, \"search_column_names\": [\"key_passes\", \"successful_passes\", \"total_passes\"], \"search_column_type\": [\"BIGINT\", \"BIGINT\", \"BIGINT\"], \"row_index\": 0, \"row_offset\": 10, \"notice_message\": \"可以顯示全部\"}"
+}
+
+--- yield #9 ---
+{
+  "level": "node",
+  "node_name": "data",
+  "error": false,
+  "content": "在資料庫 `.data/data.db` 的 `fifa_world_cup_2026_player_performance` 資料表中，包含 'passes' 字眼的欄位共有 3 個，皆為 `BIGINT` 型態，分別是：`key_passes`、`successful_passes` 與 `total_passes`。"
+}
+
+--- yield #10 ---
+{
+  "level": "node",
+  "node_name": "orchestration",
+  "error": false,
+  "content": null
+}
+
+--- yield #11 ---
+{
+  "level": "tool_call",
+  "node_name": "analysis",
+  "tool_name": "calculate_similarity",
+  "tool_args": {
+    "database_path": ".data/data.db",
+    "left_column": "age",
+    "result_name": "similarity_age_passes",
+    "right_columns": "passes",
+    "source_name": "fifa_world_cup_2026_player_performance"
+  }
+}
+
+--- yield #12 ---
+{
+  "level": "tool_result",
+  "node_name": "analysis",
+  "tool_name": "calculate_similarity",
+  "content": "{\"notice_message\": \"left_column 必須比對到剛好一個數值欄位,但這次比對到 2 個,請確認正規表達式。\", \"left_column\": [\"age\", \"save_percentage\"]}"
+}
+
+--- yield #13 ---
+{
+  "level": "tool_call",
+  "node_name": "analysis",
+  "tool_name": "calculate_similarity",
+  "tool_args": {
+    "database_path": ".data/data.db",
+    "left_column": "^age$",
+    "result_name": "similarity_age_passes",
+    "right_columns": "passes",
+    "source_name": "fifa_world_cup_2026_player_performance"
+  }
+}
+
+--- yield #14 ---
+{
+  "level": "tool_result",
+  "node_name": "analysis",
+  "tool_name": "calculate_similarity",
+  "content": "{\"result_name\": \"similarity_age_passes\", \"pair_total\": 3, \"result_columns\": {\"basis_target\": \"基準的欄位名稱,這次分析固定拿來當比較基準的欄位\", \"compare_variables\": \"被比對的欄位名稱,逐一跟基準欄位比較的分析目標\", \"similarity_score\": \"皮爾森相關係數,範圍 -1 到 1,不分正負,絕對值越大代表相關性越強\"}}"
+}
+
+--- yield #15 ---
+{
+  "level": "node",
+  "node_name": "analysis",
+  "error": false,
+  "content": "分析完成,結果存在 similarity_age_passes 表。\n欄位說明：\n- basis_target: 基準的欄位名稱,這次分析固定拿來當比較基準的欄位\n- compare_variables: 被比對的欄位名稱,逐一跟基準欄位比較的分析目標\n- similarity_score: 皮爾森相關係數,範圍 -1 到 1,不分正負,絕對值越大代表相關性越強"
+}
+
+--- yield #16 ---
+{
+  "level": "node",
+  "node_name": "orchestration",
+  "error": false,
+  "content": null
+}
+
+--- yield #17 ---
+{
+  "level": "tool_call",
+  "node_name": "chart",
+  "tool_name": "draw_bar_chart",
+  "tool_args": {
+    "category_column": "compare_variables",
+    "database_path": ".data/data.db",
+    "horizontal_mode": true,
+    "image_path": ".data/similarity_age_passes_bar.png",
+    "table_name": "similarity_age_passes",
+    "value_column": "similarity_score"
+  }
+}
+
+--- yield #18 ---
+{
+  "level": "tool_result",
+  "node_name": "chart",
+  "tool_name": "draw_bar_chart",
+  "content": "{\"image_path\": \".data/similarity_age_passes_bar.png\"}"
+}
+
+--- yield #19 ---
+{
+  "level": "node",
+  "node_name": "chart",
+  "error": false,
+  "content": "圖表已畫完,存在 .data/similarity_age_passes_bar.png"
+}
+
+--- yield #20 ---
+{
+  "level": "node",
+  "node_name": "orchestration",
+  "error": false,
+  "content": null
+}
+
+--- yield #21 ---
+{
+  "level": "node",
+  "node_name": "reply",
+  "error": false,
+  "content": "沒問題！我已經幫你完成 age 與所有包含 passes 欄位的相似度分析了。\n\n分析結果顯示，我們將 age 作為基準，分別與 `key_passes`、`successful_passes` 以及 `total_passes` 進行了皮爾森相關係數（Pearson Correlation）的計算，結果已經儲存在 `similarity_age_passes` 資料表中。\n\n另外，我也將這些分析結果畫成了水平長條圖，方便你直觀地比較相關性強弱，圖檔已經儲存在 `.data/similarity_age_passes_bar.png`，你可以去那裡查看喔！"
+}

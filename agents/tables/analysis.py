@@ -34,11 +34,12 @@ def calculate_similarity(
     """計算指定資料表中,以 left_column 這個基準欄位,跟符合 right_columns
     正規表達式的所有數值欄位,逐一計算皮爾森相關係數(一對多比對),
     結果存成新的資料表寫回資料庫,只回傳這張表的名稱與配對總數。
-    left_column 是這次分析的基準,一次只能指定一個欄位;right_columns
-    則是拿來跟基準逐一比對的一群欄位,可以同時符合多個。
-    比對到的欄位如果不是數值型態,會自動略過,不會拿去計算。
-    如果正規表達式語法有誤,會回傳錯誤說明,不會中斷執行。
-    這兩個正規表達式是用子字串比對(只要 pattern 出現在欄位名稱
+    left_column 是這次分析的基準,必須是資料表裡實際存在的精確欄位名稱,
+    不是正規表達式,一次只能指定一個欄位;right_columns 則是拿來跟基準
+    逐一比對的一群欄位,用正規表達式指定,可以同時符合多個。
+    如果 left_column 不存在、或不是數值型態,會回傳錯誤說明,不會中斷執行。
+    right_columns 比對到的欄位如果不是數值型態,會自動略過,不會拿去計算。
+    right_columns 這個正規表達式是用子字串比對(只要 pattern 出現在欄位名稱
     的任何位置就算符合),如果只想比對到名稱完全等於某個欄位,
     請用 ^欄位名$ 這種寫法明確指定完整比對,否則可能會意外比對
     到名稱裡剛好包含這段文字的其他欄位。"""
@@ -49,7 +50,6 @@ def calculate_similarity(
     right_columns = parse_characters(right_columns)
     result_name = parse_characters(result_name)
 
-    left_pattern = re.compile(left_column)
     right_pattern = re.compile(right_columns)
 
     with duckdb.connect(database_path) as connection:
@@ -57,13 +57,24 @@ def calculate_similarity(
             f"DESCRIBE {source_name}"
         ).fetchall()
 
-        matched_left_columns = [
-            name for name, column_type, *_ in all_columns
-            if (
-                left_pattern.search(name)
-                and column_type.upper() in NUMERIC_COLUMN_TYPES
+        column_types = {
+            name: column_type for name, column_type, *_ in all_columns
+        }
+
+        if left_column not in column_types:
+            notice_message = (
+                f"left_column 必須是資料表裡實際存在的精確欄位名稱,"
+                f"但找不到叫做 '{left_column}' 的欄位。"
             )
-        ]
+            return {"notice_message": notice_message}
+
+        if column_types[left_column].upper() not in NUMERIC_COLUMN_TYPES:
+            notice_message = (
+                f"left_column '{left_column}' 存在,但不是數值型態,"
+                "無法計算相關係數。"
+            )
+            return {"notice_message": notice_message}
+
         matched_right_columns = [
             name for name, column_type, *_ in all_columns
             if (
@@ -71,17 +82,6 @@ def calculate_similarity(
                 and column_type.upper() in NUMERIC_COLUMN_TYPES
             )
         ]
-
-        if len(matched_left_columns) != 1:
-            notice_message = (
-                "left_column 必須比對到剛好一個數值欄位,"
-                f"但這次比對到 {len(matched_left_columns)} 個,"
-                "請確認正規表達式。"
-            )
-            return {
-                "notice_message": notice_message,
-                "left_column": matched_left_columns,
-            }
 
         if not matched_right_columns:
             notice_message = (
@@ -94,11 +94,10 @@ def calculate_similarity(
             }
 
         pair_queries = [
-            f"SELECT '{left}' AS basis_target, "
+            f"SELECT '{left_column}' AS basis_target, "
             f"'{right}' AS compare_variables, "
-            f"corr({left}, {right}) AS similarity_score "
+            f"corr({left_column}, {right}) AS similarity_score "
             f"FROM {source_name}"
-            for left in matched_left_columns
             for right in matched_right_columns
         ]
         select_query = " UNION ALL ".join(pair_queries)
@@ -109,9 +108,7 @@ def calculate_similarity(
         # 0         age         key_passes   -0.061195
         # 1         age  successful_passes   -0.047853
         # 2         age       total_passes   -0.046014
-    pair_total = (
-        len(matched_left_columns) * len(matched_right_columns)
-    )
+    pair_total = len(matched_right_columns)
     return {
         "result_name": result_name,
         "pair_total": pair_total,

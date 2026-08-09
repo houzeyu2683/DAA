@@ -1,0 +1,19 @@
+=== Gradio handlers 測試 ===
+thread_id: 9d3cd4b0-c777-4ac3-bdb8-67f3bb687ec2
+
+--- upload_csv 結果 ---
+table_names: ['test_gradio_sample']
+chat_history: [{"role": "assistant", "content": "已上傳「test_gradio_sample.csv」，存成資料表「test_gradio_sample」"}]
+
+--- reply_message('這個資料集裡有多少筆資料?欄位有哪些?') ---
+[yield #1] 最後一則: {'role': 'user', 'content': '這個資料集裡有多少筆資料?欄位有哪些?'}
+[yield #2] 最後一則: {'role': 'assistant', 'content': '🔧 呼叫工具：is_database_exist'}
+[yield #3] 最後一則: {'role': 'assistant', 'content': '✅ 工具結果：true'}
+[yield #4] 最後一則: {'role': 'assistant', 'content': '🔧 呼叫工具：is_table_exist'}
+[yield #5] 最後一則: {'role': 'assistant', 'content': '✅ 工具結果：true'}
+[yield #6] 最後一則: {'role': 'assistant', 'content': '🔧 呼叫工具：search_columns'}
+[yield #7] 最後一則: {'role': 'assistant', 'content': '🔧 呼叫工具：list_table_overview'}
+[yield #8] 最後一則: {'role': 'assistant', 'content': '✅ 工具結果：{"search_column_total": 4, "search_column_names": ["player_name", "age", "goals", "assists"], "search_column_type": ["VARCHAR", "BIGINT", "BIGINT", "BIGINT"], "row_index": 0, "row_offset": 10, "notice_message": "可以顯示全部"}'}
+[yield #9] 最後一則: {'role': 'assistant', 'content': '✅ 工具結果：{"table_total": 1, "table_profiles": [{"table_name": "test_gradio_sample", "row_number": 5, "column_number": 4}]}'}
+[yield #10] 最後一則: {'role': 'assistant', 'content': '我已完成對資料庫的瀏覽，結果如下：\n\n資料庫中包含一個資料表 `test_gradio_sample`，總共包含 **5 筆資料**，共有 **4 個欄位**，詳細結構如下：\n- `player_name` (VARCHAR)\n- `age` (BIGINT)\n- `goals` (BIGINT)\n- `assists` (BIGINT)'}
+[yield #11] 最後一則: {'role': 'assistant', 'content': '這個資料集裡總共有 5 筆資料，欄位部分則包含 4 個，分別是：`player_name`（球員名稱）、`age`（年齡）、`goals`（進球數）以及 `assists`（助攻數）。'}

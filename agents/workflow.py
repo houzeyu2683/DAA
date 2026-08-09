@@ -92,8 +92,67 @@ class Workflow:
             print(record)
         return response
 
-    async def stream(self, *args, **kwargs):
-        ...
+    async def stream(
+        self,
+        thread_id: str,
+        session_workspace: str,
+        database_path: str,
+        table_names: list[str],
+        user_message: str,
+    ):
+
+        config = {
+            "configurable": {
+                "thread_id": thread_id,
+                "session_workspace": session_workspace,
+                "database_path": database_path,
+                "table_names": table_names,
+            },
+        }
+        state = {
+            "messages": [
+                {"role": "user", "content": user_message}
+            ]
+        }
+        async for namespace, chunk in self.graph.astream(
+            state, config=config, stream_mode="updates", subgraphs=True
+        ):
+            for step_name, update in chunk.items():
+                update = update or {}
+                messages = update.get("messages") or []
+
+                if not namespace:
+                    content = messages[-1].content if messages else None
+                    yield {
+                        "level": "node",
+                        "node_name": step_name,
+                        "error": update.get("error", False),
+                        "content": content,
+                    }
+                    continue
+
+                node_name = namespace[0].split(":")[0]
+
+                if step_name == "model":
+                    for message in messages:
+                        for tool_call in getattr(message, "tool_calls", []):
+                            yield {
+                                "level": "tool_call",
+                                "node_name": node_name,
+                                "tool_name": tool_call["name"],
+                                "tool_args": tool_call["args"],
+                            }
+                    continue
+
+                if step_name == "tools":
+                    for message in messages:
+                        yield {
+                            "level": "tool_result",
+                            "node_name": node_name,
+                            "tool_name": getattr(message, "name", None),
+                            "content": message.content,
+                        }
+                    continue
 
 
 if __name__ == "__main__":
