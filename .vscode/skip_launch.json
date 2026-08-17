@@ -1,0 +1,24 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Chainlit: frontend/application.py",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "C:\\Users\\houzeyu2683\\.conda\\envs\\DAA\\python.exe",
+            "module": "chainlit",
+            "args": ["run", "frontend/application.py"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Python: agents.workflow",
+            "type": "debugpy",
+            "request": "launch",
+            "python": "C:\\Users\\houzeyu2683\\.conda\\envs\\DAA\\python.exe",
+            "module": "agents.workflow",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        }
+    ]
+}
