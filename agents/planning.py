@@ -51,7 +51,7 @@ planning_agent = (
 )
 
 
-def planning(state: State, config: RunnableConfig) -> dict:
+async def planning(state: State, config: RunnableConfig) -> dict:
 
     session_workspace = config["configurable"]["session_workspace"]
     database_path = config["configurable"]["database_path"]
@@ -68,7 +68,7 @@ def planning(state: State, config: RunnableConfig) -> dict:
         {"role": "system", "content": system_prompt},
         *state["messages"],
     ]
-    promt_response = planning_agent.invoke(prompt_request)
+    promt_response = await planning_agent.ainvoke(prompt_request, config=config)
 
     tasks = promt_response["tasks"]
     index = -1

@@ -6,8 +6,8 @@ import duckdb
 from langchain_core.messages import ToolMessage
 from langchain_core.runnables import RunnableConfig
 from langchain.agents import create_agent
-from langchain.agents.middleware import ToolErrorMiddleware
 
+from agents.middleware import ToolErrorMiddleware
 from agents.state import State
 from agents.engine import get_model
 
@@ -135,6 +135,7 @@ def summary(state: State, config: RunnableConfig) -> dict:
                     *state["messages"],
                 ],
             },
+            config=config,
         )
     except Exception as exception:
         update = {

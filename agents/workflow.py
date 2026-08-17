@@ -59,6 +59,7 @@ class Workflow:
         table_names: list[str],
         user_message: str
     ) -> State:
+        """"""
 
         token_callback = TokenUsageCallbackHandler()
         timing_callback = TimingCallbackHandler()
@@ -100,7 +101,8 @@ class Workflow:
         table_names: list[str],
         user_message: str,
     ):
-
+        """"""
+        
         config = {
             "configurable": {
                 "thread_id": thread_id,

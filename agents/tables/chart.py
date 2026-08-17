@@ -8,8 +8,8 @@ from matplotlib.figure import Figure
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 from langchain.agents import create_agent
-from langchain.agents.middleware import ToolErrorMiddleware
 
+from agents.middleware import ToolErrorMiddleware
 from agents.state import State
 from agents.engine import get_model
 
@@ -138,6 +138,7 @@ def chart(state: State, config: RunnableConfig) -> dict:
                     *previous_messages,
                 ]
             },
+            config=config,
         )
     except Exception as exception:
         update = {

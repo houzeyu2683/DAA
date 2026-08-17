@@ -24,7 +24,7 @@ workflow = Workflow(graph=graph, debug=False)
 # 這裡的函式會被下面畫面上的按鈕、輸入框呼叫。
 
 
-def build_table_name(filename: str) -> str:
+def convert_table_name(filename: str) -> str:
     """把上傳的 CSV 檔名轉換成合法、安全的 SQL 表名。"""
 
     name = filename.rsplit(".", 1)[0]
@@ -33,6 +33,7 @@ def build_table_name(filename: str) -> str:
     name = name.strip("_")
     if not name or name[0].isdigit():
         name = f"table_{name}"
+    
     return name
 
 
@@ -63,7 +64,7 @@ def upload_csv(
     os.makedirs(session_workspace, exist_ok=True)
 
     filename = os.path.basename(csv_path)
-    table_name = build_table_name(filename)
+    table_name = convert_table_name(filename)
 
     with duckdb.connect(database_path) as connection:
         connection.execute(

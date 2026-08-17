@@ -6,8 +6,8 @@ import duckdb
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 from langchain.agents import create_agent
-from langchain.agents.middleware import ToolErrorMiddleware
 
+from agents.middleware import ToolErrorMiddleware
 from agents.state import State
 from agents.engine import get_model
 
@@ -174,7 +174,7 @@ data_agent = create_agent(
 )
 
 
-def data(state: State, config: RunnableConfig) -> dict:
+async def data(state: State, config: RunnableConfig) -> dict:
 
     session_workspace = config["configurable"]["session_workspace"]
     database_path = config["configurable"]["database_path"]
@@ -201,7 +201,7 @@ def data(state: State, config: RunnableConfig) -> dict:
                 *previous_messages,
             ]
         }
-        prompt_response = data_agent.invoke(prompt_request)
+        prompt_response = await data_agent.ainvoke(prompt_request, config=config)
     except Exception as exception:
         update = {
             "messages": [
